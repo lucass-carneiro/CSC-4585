@@ -14,46 +14,26 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fmt/base.h>
 #include <numbers>
 #include <omp.h>
+#include <tuple>
 #include <vector>
+
+using num_blocks_t = std::uint64_t;
+using num_threads_t = int;
 
 auto integrand(double x) -> double { return 4.0 / (1.0 + x * x); }
 
-auto main(int argc, char **argv) -> int {
-  // Argument handling
-  argparse::ArgumentParser program("serial_pi");
-
-  using num_blocks_t = std::uint64_t;
-  constexpr auto num_blocks_arg_str = "num_blocks";
-
-  program.add_argument(num_blocks_arg_str)
-      .help("Number of blocks to use for the integration")
-      .required()
-      .scan<'u', num_blocks_t>();
-
-  using num_threads_t = int;
-  constexpr auto num_threads_arg_string = "num_threads";
-
-  program.add_argument(num_threads_arg_string)
-      .help("Number of threads to use when integrating")
-      .required()
-      .scan<'i', num_threads_t>();
-
-  try {
-    program.parse_args(argc, argv);
-  } catch (const std::exception &err) {
-    fmt::println("CLI error: {}", err.what());
-    return EXIT_FAILURE;
-  }
-
-  const auto num_blocks = program.get<num_blocks_t>(num_blocks_arg_str);
-  const auto num_threads = program.get<num_threads_t>(num_threads_arg_string);
+template <bool verbose> static auto compute_pi(num_blocks_t num_blocks, num_threads_t num_threads) {
+  using std::min;
 
   // Partitioning the interval
-  fmt::println("Computing pi using {} blocks", num_blocks);
+  if constexpr (verbose) {
+    fmt::println("Computing pi using {} blocks", num_blocks);
+  }
 
   const double interval_start = 0.0;
   const double interval_end = 1.0;
@@ -75,15 +55,27 @@ auto main(int argc, char **argv) -> int {
     const auto actual_num_threads = static_cast<std::uint64_t>(omp_get_num_threads());
     const auto thread_id = static_cast<std::uint64_t>(omp_get_thread_num());
 
-    const auto blocks_per_thread = num_blocks / actual_num_threads;
+    if constexpr (verbose) {
+      if (thread_id == 0) {
+        fmt::println("Requested / available threads: {} / {}", num_threads, actual_num_threads);
+      }
+    }
 
-    const auto interval_start
-        = static_cast<double>(thread_id) * 1.0 / static_cast<double>(actual_num_threads);
+    const auto blocks_per_thread = num_blocks / actual_num_threads;
+    const auto remainder = num_blocks % actual_num_threads;
+
+    const auto my_blocks = blocks_per_thread + (thread_id < remainder ? 1 : 0);
+    const auto start_block = thread_id * blocks_per_thread + min(thread_id, remainder);
+
+    if constexpr (verbose) {
+      fmt::println("Thread {} is working on {} blocks, starting on block {} and ending on block {}",
+                   thread_id, my_blocks, start_block, start_block + my_blocks);
+    }
 
     double thread_area = 0;
 
-    for (std::uint64_t i = 0; i < blocks_per_thread; i++) {
-      const auto x0 = interval_start + static_cast<double>(i) * interval_step;
+    for (std::uint64_t i = 0; i < my_blocks; i++) {
+      const auto x0 = static_cast<double>(start_block + i) * interval_step;
       const auto x1 = x0 + interval_step;
 
       const auto y0 = integrand(x0);
@@ -112,10 +104,85 @@ auto main(int argc, char **argv) -> int {
       = std::chrono::duration_cast<std::chrono::nanoseconds>(compute_end_time - compute_start_time)
             .count();
 
-  // Report results
-  fmt::println("Computed value of pi = {}", total_area);
-  fmt::println("Error from actual value of pi = {}", fabs(total_area - std::numbers::pi));
+  return std::make_tuple(total_area, compute_time);
+}
+
+auto main(int argc, char **argv) -> int {
+  using std::fclose;
+  using std::fopen;
+
+  // Argument handling
+  argparse::ArgumentParser program("openmp_pi");
+
+  constexpr auto num_blocks_arg_str = "num_blocks";
+  program.add_argument(num_blocks_arg_str)
+      .help("Number of blocks to use for the integration")
+      .required()
+      .scan<'u', num_blocks_t>();
+
+  constexpr auto num_threads_arg_string = "num_threads";
+  program.add_argument(num_threads_arg_string)
+      .help("Number of threads to use when integrating")
+      .required()
+      .scan<'i', num_threads_t>();
+
+  constexpr auto scaling_test_arg_string = "--scaling";
+  program.add_argument(scaling_test_arg_string)
+      .help("Colect metrics for a scaling test")
+      .default_value(false)
+      .implicit_value(true);
+
+  try {
+    program.parse_args(argc, argv);
+  } catch (const std::exception &err) {
+    fmt::println("CLI error: {}", err.what());
+    return EXIT_FAILURE;
+  }
+
+  const auto num_blocks = program.get<num_blocks_t>(num_blocks_arg_str);
+  const auto num_threads = program.get<num_threads_t>(num_threads_arg_string);
+  const auto do_scaling_test = program.get<bool>(scaling_test_arg_string);
+
+  // Standard run
+  const auto [computed_pi, compute_time] = compute_pi<true>(num_blocks, num_threads);
+
+  fmt::println("Computed value of pi = {}", computed_pi);
+  fmt::println("Error from actual value of pi = {}", fabs(computed_pi - std::numbers::pi));
   fmt::println("Time elapsed computing pi: {} ns", compute_time);
+
+  // Statistics run
+  if (do_scaling_test) {
+    fmt::println("Doing scaling testing ...");
+
+    auto out_file = fopen("openmp_pi_scaling.dat", "w");
+    fmt::println(out_file, "#1: Threads    2: Time (ns)    3: Speedup");
+
+    constexpr int repeat = 10;
+
+    double first_time_avg = 0.0;
+
+    for (int i = 1; i <= num_threads; i++) {
+
+      long time_sum = 0;
+
+      for (int j = 0; j < repeat; j++) {
+        const auto [_, time] = compute_pi<false>(num_blocks, i);
+        time_sum += time;
+      }
+
+      const auto time_avg = static_cast<double>(time_sum) / static_cast<double>(repeat);
+
+      if (i == 1) {
+        first_time_avg = time_avg;
+      }
+
+      const auto speedup = first_time_avg / time_avg;
+
+      fmt::println(out_file, "{}    {:.16e}    {:.16e}", i, time_avg, speedup);
+    }
+
+    fclose(out_file);
+  }
 
   return EXIT_SUCCESS;
 }

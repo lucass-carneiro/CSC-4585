@@ -7,22 +7,23 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 project(
   csc-4585
   VERSION 1.0.0
-  LANGUAGES CXX
-)
+  LANGUAGES CXX)
 
 # Generate compile_commands.json for IDEs
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+set(CMAKE_EXPORT_COMPILE_COMMANDS
+    ON
+    CACHE INTERNAL "")
 
 # -----------------------------------------
 # In-source build guard
 # -----------------------------------------
 
-if (PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
+if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(
     FATAL_ERROR
-    "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
   )
-endif ()
+endif()
 
 # -----------------------------------------
 # External dependencies
@@ -34,9 +35,10 @@ find_package(fmt CONFIG REQUIRED)
 find_package(tl-expected CONFIG REQUIRED)
 
 # -----------------------------------------
-#  Targets
+# Targets
 # -----------------------------------------
 
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/01_openmp_hello)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/00_openmp_hello)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/01_openmp_non_det)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/02_serial_pi)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/03_openmp_pi)
