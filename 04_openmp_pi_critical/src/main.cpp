@@ -42,14 +42,13 @@ template <bool verbose> static auto compute_pi(num_blocks_t num_blocks, num_thre
   // *Request* a numeber of threads to use and begin parallel region
   omp_set_num_threads(num_threads);
 
-  // Hold the areas computed on each thread
-  std::vector<double> thread_areas(static_cast<std::size_t>(num_threads));
-  thread_areas.reserve(static_cast<std::size_t>(num_threads));
+  // Hold the total area computed
+  double total_area = 0.0;
 
   const auto compute_start_time = std::chrono::steady_clock::now();
 
   // Launch threads and compute areas
-#pragma omp parallel default(none) shared(thread_areas)                                            \
+#pragma omp parallel default(none) shared(total_area),                                             \
     firstprivate(num_blocks, num_threads, interval_step)
   {
     const auto actual_num_threads = static_cast<std::uint64_t>(omp_get_num_threads());
@@ -90,13 +89,10 @@ template <bool verbose> static auto compute_pi(num_blocks_t num_blocks, num_thre
       thread_area += rect_area + tri_area;
     }
 
-    thread_areas[thread_id] = thread_area;
-  }
-
-  // Summ all areas
-  double total_area = 0.0;
-  for (const auto &area : thread_areas) {
-    total_area += area;
+#pragma omp critical
+    {
+      total_area += thread_area;
+    }
   }
 
   const auto compute_end_time = std::chrono::steady_clock::now();
@@ -156,10 +152,10 @@ auto main(int argc, char **argv) -> int {
 
     constexpr int repeat = 10;
 
-    auto out_file = fopen("openmp_pi_scaling.dat", "w");
+    auto out_file = fopen("openmp_pi_critical_scaling.dat", "w");
     fmt::println(out_file, "# Num. blocks: {}", num_blocks);
     fmt::println(out_file, "# Repeats: {}", repeat);
-    fmt::println(out_file, "#1: Threads    2: Time (ns)    3: Speedup");
+    fmt::println(out_file, "#1: Threads    2: Time (ns)    3: Speedup    4:Error");
 
     double first_time_avg = 0.0;
 

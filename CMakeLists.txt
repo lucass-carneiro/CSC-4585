@@ -42,3 +42,8 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/00_openmp_hello)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/01_openmp_non_det)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/02_serial_pi)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/03_openmp_pi)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/04_openmp_pi_critical)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/05_openmp_pi_parallel_for)
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/06_mpi_hello)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/07_mpi_ping_pong)

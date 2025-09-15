@@ -9,7 +9,7 @@
     {
       "name": "x64-debug-vcpkg",
       "displayName": "x64 Debug using Vcpkg",
-      "binaryDir": "${sourceDir}/build-debug-vcpkg",
+      "binaryDir": "${sourceDir}/build-x64-debug-vcpkg",
       "architecture": {
         "value": "x64",
         "strategy": "external"
