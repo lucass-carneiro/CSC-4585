@@ -4,3 +4,5 @@ build-*/*
 .cache/*
 
 *.dat
+*.png
+*.mp4

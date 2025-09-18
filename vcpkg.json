@@ -5,6 +5,8 @@
   "dependencies": [
     "fmt",
     "tl-expected",
-    "argparse"
+    "argparse",
+    "mdspan",
+    "tomlplusplus"
   ]
 }

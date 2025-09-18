@@ -33,6 +33,8 @@ find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(tl-expected CONFIG REQUIRED)
+find_package(mdspan CONFIG REQUIRED)
+find_package(tomlplusplus CONFIG REQUIRED)
 
 # -----------------------------------------
 # Targets
@@ -47,3 +49,4 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/05_openmp_pi_parallel_for)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/06_mpi_hello)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/07_mpi_ping_pong)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/08_mpi_gol)

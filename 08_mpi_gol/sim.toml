@@ -1,0 +1,9 @@
+[general]
+grid_size = 32
+generations = 128
+stats_every = 1
+data_every = 1
+
+[id]
+id_type = "glider"
+random_seed = 64
